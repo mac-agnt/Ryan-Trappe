@@ -20,7 +20,9 @@ npm run build      # type-check + production build into dist/
 | Overlays: ⌘K palette, agent studio, Helios mini chat, work viewer, new record, background gallery | `src/views/overlays/` |
 | App frame: sidebar, top bar, notifications | `src/views/AppShell.tsx` |
 | State and behaviour | `src/logic/PulseLogic.js` |
-| Demo data (Kilbride Group) | `src/logic/data.js` |
+| Ryan Trappe demo: typed store, fixtures, actions, chat replies, routes | `src/demo/` |
+| Ryan Trappe module pages, sheets and print views | `src/views/demo/`, `src/styles/demo.css` |
+| Template shell data (nav, ontology labels) | `src/logic/data.js` |
 | Agent avatar | `src/components/AgentFace.tsx` |
 | Theme tokens (Harbour, light and 11 more), animations | `src/styles/pulse.css` |
 

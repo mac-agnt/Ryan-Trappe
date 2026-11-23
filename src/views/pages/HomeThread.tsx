@@ -140,6 +140,16 @@ export default function HomeThread({ v }: Props) {
                           </div>
                         </>
                       )}
+                      {m?.hasChain && (
+                        <div className="rt-chain" style={{"marginTop":"14px"}}>
+                          {arr(m?.chain).map((c: any, ic: number) => (
+                            <Fragment key={ic}>
+                              {ic > 0 && <span className="arr">→</span>}
+                              <button type="button" onClick={c?.run}>{c?.label}</button>
+                            </Fragment>
+                          ))}
+                        </div>
+                      )}
                       {m?.hasConfirm && (
                         <>
                           <div style={{"marginTop":"16px","padding":"16px 18px","background":"var(--accent-faint)","border":"1px solid var(--accent-line)","borderRadius":"var(--card-r,18px)"}}>

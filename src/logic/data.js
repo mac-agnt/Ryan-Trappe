@@ -1,4 +1,5 @@
-/* Demo data and pure helpers for the Pulse prototype (Kilbride Group). */
+/* Template data and pure helpers for Pulse. Client records for the Ryan Trappe
+   demo live in src/demo/ (one typed store); this file keeps the shell data. */
 
 const INK="var(--ink)", BODY="var(--body)", DIM="var(--dim)", FAINT="var(--faint)";
 const LIME="var(--accent)", GREEN="var(--ok)", AMBER="var(--warn)", RED="var(--bad)", NEUTRAL="var(--neutral)";
@@ -32,14 +33,18 @@ const ICONS = {
   records:"M6.4 3.6h7.4l4.2 4.2v12.6H6.4V3.6Z M13.4 3.8v4.2h4.2 M9 12.4h6 M9 16h4",
   tree:"M4.5 6h5 M4.5 12h5 M4.5 18h5 M12.5 6h7 M12.5 12h7 M12.5 18h7",
   graph:"M7 7.4a2.4 2.4 0 1 0 0-4.8 2.4 2.4 0 0 0 0 4.8Z M17.6 10.4a2.4 2.4 0 1 0 0-4.8 2.4 2.4 0 0 0 0 4.8Z M9.4 21.4a2.4 2.4 0 1 0 0-4.8 2.4 2.4 0 0 0 0 4.8Z M8.6 6.4l7.6 2.6 M15.8 11.4l-5.6 5.2",
-  bell:"M6 8.5a6 6 0 0 1 12 0c0 6.5 2.6 8.5 2.6 8.5H3.4S6 15 6 8.5Z M10.3 20.5a1.94 1.94 0 0 0 3.4 0"
+  bell:"M6 8.5a6 6 0 0 1 12 0c0 6.5 2.6 8.5 2.6 8.5H3.4S6 15 6 8.5Z M10.3 20.5a1.94 1.94 0 0 0 3.4 0",
+  navJobs:"M6.4 4h11.2A1.9 1.9 0 0 1 19.5 5.9v12.2A1.9 1.9 0 0 1 17.6 20H6.4a1.9 1.9 0 0 1-1.9-1.9V5.9A1.9 1.9 0 0 1 6.4 4Z M8.5 2.6v3 M15.5 2.6v3 M8.4 10.4h7.2 M8.4 14h4.6",
+  navInvoices:"M6.4 3.6h7.4l4.2 4.2v12.6H6.4V3.6Z M13.4 3.8v4.2h4.2 M14.4 12.1a3 3 0 1 0 0 3.8 M8.8 13.2h4.4 M8.8 14.8h4.4",
+  navCosts:"M6 3.5h12v17l-2.4-1.4-2.4 1.4-2.4-1.4-2.4 1.4L6 19.1V3.5Z M9 8h6 M9 11.5h6 M9 15h3.5",
+  navPlant:"M3.5 18.5h11 M5.5 20.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z M12.5 20.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z M4.5 16.5V12h6.5v4.5 M11 12l3.5-6.5 5 3.5-1.5 3 M18 12l1.5 3.5h-3.2"
 };
 
 /* Ontology stays first and is never removed (PulseLogic enforces this too). */
 const REC_SECTIONS = [
   {id:"ontology", label:"Ontology", blurb:"How every record connects: entities, predicates and the paths between them."},
-  {id:"files", label:"Files", blurb:"Documents, contracts and certificates — indexed where Helios can read them."},
-  {id:"contacts", label:"Contacts", blurb:"Every person the business deals with, staff and external."}
+  {id:"files", label:"Files", blurb:"Invoices, receipts, supplier bills and the imported workbook."},
+  {id:"contacts", label:"Directory", blurb:"Customers, suppliers, people, jobs, machines and documents in one list."}
 ];
 
 const CONTACTS = [
@@ -99,21 +104,21 @@ const FILE_TREE = [
 ];
 
 const ONTO_NODES = [
-  ["Organisation","entity",500,300,1,"Customers and suppliers. Balances arrive from the ledger through the record spine."],
-  ["Person","entity",300,190,1,"One entity for staff and external contacts, scoped by role rather than split in two."],
-  ["Location","entity",700,190,1,"Multi-branch as a business concept: locations plus the location permission scope."],
-  ["Team","entity",250,430,1,"Teams are records, so the team scope on a grant resolves against them."],
-  ["Task","entity",690,430,1,"Work, whatever it is attached to. Queues are one permission-filtered query."],
-  ["Approval","entity",850,320,0,"A request and its steps. Each decision is written as the person who made it."],
-  ["Invoice","ledger",390,95,0,"Read through the spine — the wholesale ledger stays the source of truth."],
-  ["Order","ledger",620,95,0,"Purchase and sales orders, linked to the organisation that raised them."],
-  ["Visit","module",860,470,0,"Contributed by site-visits, with its own table, predicate and tools."],
-  ["File","entity",140,300,0,"Documents against any record. Indexed pages are what Helios can read."],
-  ["works at","predicate",395,240,0,"Person → Organisation."],
-  ["located at","predicate",605,240,0,"Organisation → Location."],
-  ["member of","predicate",360,370,0,"Person → Team."],
-  ["relates to","predicate",600,370,0,"Task → anything."],
-  ["attached to","predicate",140,372,0,"File → anything."]
+  ["Customer","entity",500,300,1,"Businesses and public bodies Ryan works for."],
+  ["Person","entity",300,190,1,"Crew, relief operators and the accountant, scoped by role."],
+  ["Job","entity",700,190,1,"A piece of work for a customer, with planned workdays."],
+  ["Diary day","entity",250,430,1,"One approved day on one job: the field note and its machine lines."],
+  ["Machine","entity",690,430,1,"Six machines, each with a meter, a service interval and a policy."],
+  ["Invoice line","entity",850,320,0,"Hours of one machine on one invoice, built from dated machine lines."],
+  ["Invoice","ledger",390,95,0,"Prepared from approved diary days, snapshotted when sent."],
+  ["Payment","ledger",620,95,0,"Entered by hand against an invoice, each with its own receipt."],
+  ["Cost","module",860,470,0,"Supplier bills and paper receipts, with what Justin already has."],
+  ["Document","entity",140,300,0,"Invoices, receipts, supplier bills, the policy schedule and the workbook."],
+  ["billed on","predicate",395,240,0,"Diary machine line → invoice line."],
+  ["worked on","predicate",605,240,0,"Machine line → machine and operator."],
+  ["for","predicate",360,370,0,"Job → customer."],
+  ["paid by","predicate",600,370,0,"Invoice → payment → receipt."],
+  ["proves","predicate",140,372,0,"Document → cost or payment."]
 ];
 
 const ONTO_EDGES = [
@@ -460,10 +465,14 @@ const STREAM_DEFS = [
 const NAV = [
   {label:"Home", icon:"helios", page:"Home"},
   {label:"Agents", icon:"navAgents", page:"Agents"},
-  {label:"Dashboard", icon:"navDash", page:"Dashboard", dot:true},
+  {label:"Jobs & diary", icon:"navJobs", page:"Jobs"},
+  {label:"Invoices", icon:"navInvoices", page:"Invoices"},
+  {label:"Costs", icon:"navCosts", page:"Costs"},
+  {label:"Plant", icon:"navPlant", page:"Plant"},
   {label:"Work", icon:"navWork", page:"Work"},
+  {label:"Dashboard", icon:"navDash", page:"Dashboard"},
   {label:"Records", icon:"navRecords", page:"Records"},
-  {label:"Activity", icon:"pulseLine", page:"Activity", dot:true}
+  {label:"Activity", icon:"pulseLine", page:"Activity"}
 ];
 
 /* Inbox items follow the real InboxItem shape: what happened, why it matters, what I can do. */
@@ -986,14 +995,14 @@ const FACE_TINTS = [
 
 /* ---- ontology graph: generation, Dijkstra traversal, canvas render ---- */
 const CLUSTERS = [
-  ["Organisations", "#c8f04b", 0.00, 0.62, 46],
-  ["People",        "#6ad0f0", 0.90, 0.70, 52],
-  ["Files",         "#b06cf0", 1.75, 0.66, 58],
-  ["Tasks",         "#f0c04b", 2.55, 0.72, 44],
-  ["Invoices",      "#f0567f", 3.35, 0.60, 38],
-  ["Site visits",   "#5fe0a8", 4.15, 0.70, 40],
-  ["Locations",     "#f0803a", 4.95, 0.64, 30],
-  ["Approvals",     "#5f7cf0", 5.65, 0.72, 34]
+  ["Customers",    "#7cc0a7", 0.00, 0.62, 30],
+  ["Jobs",         "#9fb8d6", 0.90, 0.70, 34],
+  ["Diary days",   "#5fae8f", 1.75, 0.66, 60],
+  ["Machines",     "#D89524", 2.55, 0.72, 30],
+  ["Invoice lines","#c7a6e0", 3.35, 0.60, 44],
+  ["Invoices",     "#f0b85c", 4.15, 0.70, 36],
+  ["Payments",     "#6ad0c0", 4.95, 0.64, 32],
+  ["People",       "#e8907a", 5.65, 0.72, 28]
 ];
 
 function mulberry(seed){

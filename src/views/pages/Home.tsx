@@ -8,7 +8,7 @@ type Props = { v: any };
 export default function Home({ v }: Props) {
   return (
     <>
-      <div style={{"position":"relative","display":"flex","gap":"20px","height":"100%","padding":"0 22px 22px"}}>
+      <div className="rt-home" style={{"position":"relative","display":"flex","gap":"20px","height":"100%","padding":"0 22px 22px"}}>
         <div style={css(v.homeCanvasStyle)} />
         <div style={css(v.chatColumnStyle)}>
           {v.heliosEmpty && (
@@ -16,7 +16,7 @@ export default function Home({ v }: Props) {
               <div style={{"flex":"1 1 0","minHeight":"0"}} />
             </>
           )}
-          <div style={css(v.chatScrollStyle)}>
+          <div data-chat-scroll="1" style={css(v.chatScrollStyle)}>
             {v.heliosEmpty && (
               <>
                 <div style={{"flex":"0 0 auto","display":"flex","flexDirection":"column","alignItems":"center","justifyContent":"flex-end","textAlign":"center","padding":"clamp(4px,1.2vh,14px) 8px clamp(20px,3.2vh,34px)"}}>
@@ -66,6 +66,14 @@ export default function Home({ v }: Props) {
                     <div style={{"display":"flex","flexWrap":"wrap","alignItems":"center","gap":"2px","padding":"6px 8px","borderTop":"1px solid var(--border)","background":"var(--surface-faint)"}}>
                       {arr(v.composerTools).map((t: any, i14: number) => (
                         <Fragment key={i14}>
+                          {t?.primary ? (
+                            <button type="button" className="rt-btn rt-btn-p rt-btn-sm rt-log-day" onClick={t?.go} style={{"marginRight":"4px"}}>
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{"flex":"none"}}>
+                                <path d={t?.icon} />
+                              </svg>
+                              {txt(t?.label)}
+                            </button>
+                          ) : (
                           <button className="ixl" onClick={t?.go} style={{"display":"flex","alignItems":"center","gap":"7px","height":"28px","padding":"0 11px","border":"0","borderRadius":"var(--r-ctl,10px)","background":"none","color":"var(--dim)","fontSize":"12px","cursor":"pointer","whiteSpace":"nowrap","transition":"background .18s var(--ease),color .18s var(--ease)"}}>
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{"flex":"none","opacity":".85"}}>
                               <path d={t?.icon} />
@@ -73,6 +81,7 @@ export default function Home({ v }: Props) {
                             {"\n"}
                             {txt(t?.label)}
                           </button>
+                          )}
                         </Fragment>
                       ))}
                       <span style={{"flex":"1","minWidth":"6px"}} />
@@ -80,7 +89,7 @@ export default function Home({ v }: Props) {
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" style={{"opacity":".85"}}>
                           <path d="m21 21-4.3-4.3 M17 11a6 6 0 1 1-12 0 6 6 0 0 1 12 0" />
                         </svg>
-                        {"\nSearch everything"}
+                        {"\nSearch"}
                       </button>
                     </div>
                   </>

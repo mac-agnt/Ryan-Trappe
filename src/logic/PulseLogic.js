@@ -65,6 +65,19 @@ import {
   hexRGB,
   buildGraph
 } from "./data";
+import { getState as demoState, subscribe as demoSubscribe, actingAs } from "../demo/store";
+import { getRoute, subscribeRoute, go as routeGo, pageDef } from "../demo/router";
+import { reply as demoReply } from "../demo/chat";
+import { getUi, subscribeUi, setSearch, setNavOpen, openCapture } from "../demo/ui";
+import { greeting, dublinNow, TODAY, euro as fmtEuro, dShort } from "../demo/format";
+import { coverage, chaseList, openTasks as demoOpenTasks, approvals as demoApprovals, serviceDiary, money as demoMoney } from "../demo/derive";
+import { buildFileTree } from "../demo/files";
+
+/* Records tabs in the URL ↔ the template's section ids. */
+const SEC_OF_TAB = {ontology:"ontology", files:"files", directory:"contacts"};
+const TAB_OF_SEC = {ontology:"ontology", files:"files", contacts:"directory"};
+const DEMO_PAGES = ["Agents","Jobs","Invoices","Costs","Plant","Work","Dashboard","Activity","Settings"];
+const PAGE_ORDER = ["Home","Agents","Jobs","Invoices","Costs","Plant","Work","Dashboard","Records","Activity","Settings"];
 
 /* ── Locked layout ──────────────────────────────────────────────────────────
    These two rules hold for every client build, whatever data.js says:
@@ -86,7 +99,7 @@ const NAV = (() => {
 
 /* All state and behaviour for Pulse. renderVals() returns the flat object the views render from. */
 export default class PulseLogic extends DCLogic {
-  state = { w: typeof window === "undefined" ? 1440 : window.innerWidth, theme:"harbour", page:"Home", draft:"", query:"", thread:[], typed:0, paletteOpen:false, showNotifs:false, palScope:"All", palSel:0, palRecent:["Dunne & Sons Ltd","Credit Control"],
+  state = { w: typeof window === "undefined" ? 1440 : window.innerWidth, theme:"harbour", page:getRoute().page, draft:"", query:"", thread:[], typed:0, paletteOpen:false, showNotifs:false, palScope:"All", palSel:0, palRecent:[],
             done:{}, resolved:{}, approved:{}, inboxFilter:"All", approvalFilter:"Awaiting you", open:null, range:"30d",
             workDoc:null, workDocTab:"work",
             queue:"mine", recordTab:"Overview", record:"person", hovered:null, hoverLabel:"", hoverHint:"", hoverTop:0,
@@ -96,7 +109,7 @@ export default class PulseLogic extends DCLogic {
             adminCard:null, adminFlags:{},
             adminOpen:null, adminFlags:{}, adminGroup:null,
             actPaused:false, actHover:null, actKpi:"all", actQuery:"", actOpen:null, actTick:0,
-            recSection:"ontology", recAsk:"", treeOpen:true, treeExpanded:{}, treeFile:"fl-1", treeQuery:"",
+            recSection:(getRoute().page === "Records" && SEC_OF_TAB[getRoute().tab]) || "ontology", recAsk:"", treeOpen:true, treeExpanded:{}, treeFile:"fl-1", treeQuery:"",
             ontoNode:"Organisation", ontoHover:null, ontoLayout:"Force",
             newRecOpen:false, newRecName:"", newRecTemplate:"Field sheet", newRecCat:"All",
             opsFilter:"all", opsOff:{}, opsOpen:null, opsScope:"week", opsDay:26, opsOrder:null, opsDrag:null,
@@ -972,11 +985,12 @@ export default class PulseLogic extends DCLogic {
   // character down and swings the new one up. Results are cached per stamp so
   // repeat renders inside one tick don't cancel a flip mid-air.
   buildFlipUnits(BODY, INK, LIME){
-    const now = new Date();
-    const DAY = ["SUN","MON","TUE","WED","THU","FRI","SAT"][now.getDay()];
-    const MON = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"][now.getMonth()];
-    const target = (DAY + String(now.getDate()).padStart(2,"0") + MON
-      + String(now.getHours()).padStart(2,"0") + String(now.getMinutes()).padStart(2,"0")).split("");
+    // Business date of the demo, real Dublin wall-clock time.
+    const biz = new Date(TODAY + "T12:00:00Z"), dub = dublinNow();
+    const DAY = ["SUN","MON","TUE","WED","THU","FRI","SAT"][biz.getUTCDay()];
+    const MON = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"][biz.getUTCMonth()];
+    const target = (DAY + String(biz.getUTCDate()).padStart(2,"0") + MON
+      + String(dub.h).padStart(2,"0") + String(dub.m).padStart(2,"0")).split("");
     if (!this._flapMount) this._flapMount = Date.now();
     const el = Date.now() - this._flapMount;
     const settleAt = i => 200 + i * 75 + 200;
@@ -1154,11 +1168,41 @@ export default class PulseLogic extends DCLogic {
   }
 
   openPalette(){
-    this._palOpenedAt = Date.now();
-    this.setState({paletteOpen:true, showNotifs:false, query:"", palSel:0, palScope:"All"});
+    this.setState({showNotifs:false});
+    setSearch(true);
+  }
+
+  /* The URL is the source of truth for page, tab and record. */
+  syncFromRoute(){
+    const r = getRoute();
+    const patch = {};
+    const key = r.page + "/" + r.tab;
+    if (this._routeKey && this._routeKey !== key){
+      const main = document.querySelector("[data-scroll-main]");
+      if (main) main.scrollTop = 0;
+    }
+    this._routeKey = key;
+    if (this.state.page !== r.page){
+      const from = PAGE_ORDER.indexOf(this.state.page), to = PAGE_ORDER.indexOf(r.page);
+      patch.page = r.page; patch.open = null; patch.showNotifs = false;
+      if (from > -1 && to > -1) { patch.navDir = to > from ? 1 : -1; patch.navSeq = (this.state.navSeq || 0) + 1; }
+    }
+    if (r.page === "Records"){
+      const sec = SEC_OF_TAB[r.tab] || "ontology";
+      if (this.state.recSection !== sec) patch.recSection = sec;
+      if (r.tab === "files" && r.id && this.state.treeFile !== r.id) patch.treeFile = r.id;
+    }
+    if (Object.keys(patch).length) this.setState(patch); else this.forceUpdate();
+    if (patch.page === "Dashboard") this.startKpiCount();
+    if (getUi().navOpen) setNavOpen(false);
   }
 
   componentDidMount(){
+    this._unsubDemo = demoSubscribe(() => this.forceUpdate());
+    this._unsubUi = subscribeUi(() => this.forceUpdate());
+    this._unsubRoute = subscribeRoute(() => this.syncFromRoute());
+    if (!location.hash) routeGo({page:"Home"}, {replace:true});
+    this.syncFromRoute();
     requestAnimationFrame(() => this.syncRailThumb());
     setTimeout(() => this.syncRailThumb(), 700);
     setTimeout(() => { const nav = document.querySelector('nav[data-rail-nav]');
@@ -1202,9 +1246,9 @@ export default class PulseLogic extends DCLogic {
     this._key = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k"){
         e.preventDefault();
-        if (this.state.paletteOpen) this.setState({paletteOpen:false, query:"", palSel:0}); else this.openPalette();
+        setSearch(!getUi().search);
       }
-      if (e.key === "Escape") this.setState({paletteOpen:false, showNotifs:false});
+      if (e.key === "Escape") { this.setState({paletteOpen:false, showNotifs:false}); if (getUi().search) setSearch(false); if (getUi().navOpen) setNavOpen(false); }
     };
     window.addEventListener("keydown", this._key);
     this._paste = (e) => {
@@ -1216,16 +1260,19 @@ export default class PulseLogic extends DCLogic {
     };
     window.addEventListener("paste", this._paste);
   }
-  componentWillUnmount(){ window.removeEventListener("paste", this._paste); window.removeEventListener("resize", this._resize); window.removeEventListener("keydown", this._key); clearInterval(this._t); clearInterval(this._clockTimer); clearInterval(this._flapBoot); cancelAnimationFrame(this._raf); clearInterval(this._fallback); clearInterval(this._actTimer); clearInterval(this._kpiTimer); }
+  componentWillUnmount(){ this._unsubDemo && this._unsubDemo(); this._unsubUi && this._unsubUi(); this._unsubRoute && this._unsubRoute(); window.removeEventListener("paste", this._paste); window.removeEventListener("resize", this._resize); window.removeEventListener("keydown", this._key); clearInterval(this._t); clearInterval(this._clockTimer); clearInterval(this._flapBoot); cancelAnimationFrame(this._raf); clearInterval(this._fallback); clearInterval(this._actTimer); clearInterval(this._kpiTimer); }
 
+  /* Home chat. Replies are deterministic and read the same store as every page. */
   ask(q){
-    const a = pickAnswer(q);
-    const words = a.text.split(" ").length;
+    const a = demoReply(demoState(), q, (next) => this.ask(next));
     const thread = this.state.thread.concat([
       {role:"user", text:q},
-      {role:"helios", full:a.text, words, tool:a.tool, effect:a.effect, cols:a.cols, rows:a.rows, actions:a.actions, confirm:a.confirm, confirmSummary:a.confirmSummary}
+      {role:"helios", full:a.text, tool:a.tool, effect:a.effect, cols:a.cols, rows:a.rows, tableCols:a.tableCols, actions:a.actions, chain:a.chain}
     ]);
-    this.setState({thread, draft:"", query:"", paletteOpen:false, page:"Home", open:null});
+    this.setState({thread, draft:"", query:"", paletteOpen:false, open:null});
+    setSearch(false);
+    if (getRoute().page !== "Home") routeGo({page:"Home"});
+    setTimeout(() => { const el = document.querySelector("[data-chat-scroll]"); if (el) el.scrollTop = el.scrollHeight; }, 60);
   }
 
   hover(key, label, hint, e){
@@ -1247,14 +1294,17 @@ export default class PulseLogic extends DCLogic {
       if (!this._railLive){ this._railLive = true; setTimeout(() => this.setState({railThumbLive:true}), 60); }
     }
   }
-  componentDidUpdate(){ this.syncRailThumb(); }
+  componentDidUpdate(){
+    this.syncRailThumb();
+    const r = getRoute();
+    if (this.state.page !== r.page) routeGo({page:this.state.page});
+    else if (r.page === "Records" && TAB_OF_SEC[this.state.recSection] && TAB_OF_SEC[this.state.recSection] !== r.tab) routeGo({page:"Records", tab:TAB_OF_SEC[this.state.recSection]});
+  }
 
   go(page){
-    const order = NAV.filter(n => !n.divider).map(n => n.page).concat(["Settings"]);
-    const from = order.indexOf(this.state.page), to = order.indexOf(page);
-    if (from > -1 && to > -1 && from !== to) this.setState(p => ({navDir: to > from ? 1 : -1, navSeq:(p.navSeq || 0) + 1}));
-    this.setState({page, open:null, showNotifs:false, filterMenuOpen:false});
-    if (page === "Dashboard") this.startKpiCount();
+    this.setState({open:null, showNotifs:false, filterMenuOpen:false});
+    setNavOpen(false);
+    routeGo({page});
   }
   toggleIn(key, value){
     this.setState(prev => {
@@ -1355,7 +1405,25 @@ export default class PulseLogic extends DCLogic {
       }, 450);
     }
     const st = this.state, page = st.page;
+    const DS = demoState(), R = getRoute(), UI = getUi();
+    const FILE_TREE = buildFileTree(DS);
+    const mobile = st.w < 760;
     const openKeys = ORDER.filter(k => !st.resolved[k]);
+    /* side rail badges, from the demo store */
+    const millCov = coverage(DS, DS.jobs.find(j => j.id === "J-014"));
+    const missingDays = DS.jobs.reduce((n, j) => n + coverage(DS, j).missing.length, 0);
+    const chase = chaseList(DS);
+    const overdueN = chase.filter(v => v.overdueDays > 0 && !v.held).length;
+    const tasksOpen = demoOpenTasks(DS).length;
+    const svc = serviceDiary(DS)[0];
+    const readyToSend = DS.costs.filter(c => c.justin === "ready").length;
+    const NAV_BADGE = {
+      Jobs:{hint: missingDays ? String(missingDays) : "", dot: missingDays > 0},
+      Invoices:{hint: overdueN ? String(overdueN) : "", dot: overdueN > 0},
+      Costs:{hint: readyToSend ? String(readyToSend) : "", dot: false},
+      Plant:{hint: "", dot: !svc.booked && svc.remaining <= 25},
+      Work:{hint: tasksOpen ? String(tasksOpen) : "", dot: false}
+    };
 
     // Equal grid columns (width:max-content + 1fr) let a single thumb glide by
     // translateX(index * 100%) — no measurement, and identical motion everywhere.
@@ -1401,7 +1469,7 @@ export default class PulseLogic extends DCLogic {
       + (shown ? "visibility:visible" : "visibility:hidden;opacity:0;transform:translate(-12px,-50%) scale(.92)")
 
     // Open rail shows labels inline; collapsed rail shows them as the hover pill — never both.
-    const railOpen = st.railOpen;
+    const railOpen = mobile ? true : st.railOpen;
     // Collapsed: the label leaves the flex row entirely — otherwise its gap decentres the icon.
     const inlineStyle = (hov, act) => railOpen
       ? "flex:1;min-width:0;font-size:13px;text-align:left;white-space:nowrap;overflow:hidden;opacity:1;"
@@ -1411,8 +1479,8 @@ export default class PulseLogic extends DCLogic {
       : "display:none";
     const nav = NAV.map((n, idx) => n.divider
       ? {isDivider:true, isItem:false}
-      : {isItem:true, isDivider:false, label:n.label, hint: railOpen ? (n.hint || "") : "", d:ICONS[n.icon],
-         dot: n.dot === true && openKeys.length > 0,
+      : {isItem:true, isDivider:false, label:n.label, hint: railOpen ? ((NAV_BADGE[n.page] || {}).hint || "") : "", d:ICONS[n.icon],
+         dot: !!(NAV_BADGE[n.page] || {}).dot,
          dotStyle: "position:absolute;top:5px;" + (railOpen ? "left:30px" : "right:6px")
            + ";width:5px;height:5px;border-radius:50%;background:var(--accent)",
          inlineStyle: inlineStyle(st.railHov === idx, n.page === page),
@@ -1740,14 +1808,14 @@ export default class PulseLogic extends DCLogic {
     const ontoSel = ONTO_NODES.find(n => n[0] === st.ontoNode) || ONTO_NODES[0];
 
     const HERO = {
-      contacts:{eyebrow:"CONTACTS · " + CONTACTS.length + " ON FILE", title:"Everyone you deal with",
-        blurb:"Staff and external in one place. Ask in your own words — it matches on name, role, organisation and tag.",
-        placeholder:"Try “buyers in Cork”, “installers”, “on stop”…", kind:"KEYWORD", scroll:"SCROLL FOR THE FULL LIST",
-        suggestions:["on stop","installer","Casey","supplier"]},
+      contacts:{eyebrow:"DIRECTORY · " + (DS.customers.length + DS.suppliers.length + DS.people.length + DS.jobs.length + DS.machines.length + DS.docs.length) + " RECORDS", title:"Everyone and everything",
+        blurb:"Customers, suppliers, people, jobs, machines and documents. Search in your own words.",
+        placeholder:"Try “Glenwater”, “October”, “digger”, “Justin”…", kind:"RECORDS", scroll:"SCROLL FOR THE LIST",
+        suggestions:["Glenwater","October","digger","Justin"]},
       files:{eyebrow:"FILES · " + FILE_TREE.filter(r => r.type === "file").length + " DOCUMENTS",
-        title:"Everything on record", blurb:"Contracts, certificates and invoices. Indexed pages are the ones Helios can read from.",
+        title:"Everything on record", blurb:"Invoices, receipts, supplier bills and the imported workbook.",
         placeholder:"Search inside every document…", kind:"FULL TEXT", scroll:"SCROLL FOR THE VIEWER",
-        suggestions:["credit","expiry","framework","invoice"]},
+        suggestions:["Glenwater","fuel","paid","PL-01"]},
       ontology:{eyebrow:"ONTOLOGY", title:"Ontology", blurb:recSec.blurb,
         placeholder:"", kind:"", scroll:"", suggestions:[]}
     }[recSec.id];
@@ -1764,8 +1832,8 @@ export default class PulseLogic extends DCLogic {
       // On Files the hero field IS the in-file search, so there is only ever one
       // search box on the page and it always drives what is shown below.
       ask: recSec.id === "files" ? st.treeQuery : st.recAsk,
-      asking: recSec.id === "files" ? fileQ.length > 0 : askTerms.length > 0,
-      notAsking: recSec.id === "files" ? fileQ.length === 0 : askTerms.length === 0,
+      asking: recSec.id === "files" ? fileQ.length > 0 : false,
+      notAsking: recSec.id === "files" ? fileQ.length === 0 : true,
       setAsk: (e) => this.setState(recSec.id === "files" ? {treeQuery:e.target.value} : {recAsk:e.target.value}),
       clearAsk: () => this.setState(recSec.id === "files" ? {treeQuery:""} : {recAsk:""}),
       askAnswer: recSec.id === "files"
@@ -1805,7 +1873,7 @@ export default class PulseLogic extends DCLogic {
       facts: activeFile ? activeFile.facts.map(k => ({k:k[0], v:k[1]})) : [],
       body: activeFile ? activeFile.body : [],
       links: activeFile ? activeFile.links.map(l => ({label:l[0],
-        open: () => this.setState({recSection: l[1] === "person" || l[1] === "org" ? "contacts" : "ontology"})})) : []
+        open: () => routeGo(l[2])})) : []
     };
 
     /* ---- admin ---- */
@@ -3089,7 +3157,24 @@ export default class PulseLogic extends DCLogic {
     const DIRS_ORDER = ["People","Organisations","Teams","Locations","Site visits"];
     const ADMIN_ORDER = ["Automations","System health","Installed modules"];
     let contextNav, contextHint, searchHint;
-    if (page === "Settings"){
+    const tabCount = (pg, id) => {
+      if (pg === "Jobs" && id === "diary") return missingDays ? String(missingDays) : "";
+      if (pg === "Jobs" && id === "ready") { const n = DS.jobs.filter(j => j.status === "finished" && coverage(DS, j).complete && !DS.invoices.some(i => i.jobId === j.id) && DS.days.some(d => d.jobId === j.id && !d.invoiceId)).length + DS.invoices.filter(i => i.status === "draft").length; return n ? String(n) : ""; }
+      if (pg === "Invoices" && id === "chase") return chase.length ? String(chase.length) : "";
+      if (pg === "Costs" && id === "handover") return readyToSend ? String(readyToSend) : "";
+      if (pg === "Work" && id === "today") return tasksOpen ? String(tasksOpen) : "";
+      if (pg === "Work" && id === "approvals") { const n = demoApprovals(DS).length; return n ? String(n) : ""; }
+      if (pg === "Work" && id === "callbacks") { const n = DS.callbacks.filter(c => c.status !== "done").length; return n ? String(n) : ""; }
+      if (pg === "Plant" && id === "service") return !svc.booked && svc.remaining <= 25 ? svc.remaining + " h" : "";
+      return "";
+    };
+    if (DEMO_PAGES.indexOf(page) > -1){
+      const def = pageDef(page);
+      contextNav = def.tabs.map(t => seg(t[1], R.tab === t[0], () => routeGo({page, tab:t[0]}), tabCount(page, t[0])));
+      const mny = demoMoney(DS);
+      contextHint = page === "Invoices" ? (chase.length ? fmtEuro(mny.openC) + " OWED" : "ALL PAID") : page === "Jobs" ? (missingDays ? missingDays + " DAY MISSING" : "DIARY UP TO DATE") : page === "Dashboard" ? "NOVEMBER 2026" : page === "Work" ? tasksOpen + " OPEN" : page === "Costs" ? fmtEuro(mny.outC) + " PAID OUT" : page === "Plant" ? "6 MACHINES" : "";
+      searchHint = "Search jobs, invoices, receipts";
+    } else if (page === "Settings"){
       contextNav = ADMIN_GROUPS.map(grp => seg(
         grp[0].charAt(0) + grp[0].slice(1).toLowerCase(),
         st.adminGroup === grp[0],
@@ -3104,7 +3189,7 @@ export default class PulseLogic extends DCLogic {
       searchHint = "Search the audit trail";
     } else if (page === "Records"){
       contextNav = REC_SECTIONS.map(s => seg(s.label, st.recSection === s.id,
-        () => this.setState({recSection:s.id})));
+        () => routeGo({page:"Records", tab:TAB_OF_SEC[s.id] || s.id})));
       contextHint = "RECORDS · " + recSec.label.toUpperCase();
       searchHint = recSec.id === "ontology" ? "Search the ontology" : "Search " + recSec.label.toLowerCase();
     } else if (page === "Work"){
@@ -3117,8 +3202,8 @@ export default class PulseLogic extends DCLogic {
         seg("Home", page === "Home", () => this.go("Home")),
         seg("Dashboard", page === "Dashboard", () => this.go("Dashboard"))
       ];
-      contextHint = page === "Home" ? "HELIOS · " + openKeys.length + " WAITING" : "CRM · " + areaLabel.toUpperCase();
-      searchHint = page === "Dashboard" ? "Search the dashboard" : "Search every record you can see";
+      contextHint = (millCov.missing.length ? "FRIDAY MISSING · " : "") + (chase.length ? fmtEuro(demoMoney(DS).openC) + " OWED" : "ALL PAID");
+      searchHint = "Search every record";
     } else if (page === "Agents"){
       contextNav = [];
       contextHint = "";
@@ -3195,8 +3280,15 @@ export default class PulseLogic extends DCLogic {
       settingsInlineStyle: inlineStyle(st.railHov === "settings", page === "Settings"),
 
       /* header zones */
-      isAgents: page === "Agents",
-      showPillNav: page !== "Agents",
+      isAgents: false,
+      isAgentsPage: page === "Agents",
+      showPillNav: true,
+      demoPage: DEMO_PAGES.indexOf(page) > -1 ? page : "",
+      mobile, navOpen: UI.navOpen,
+      openNav: () => setNavOpen(true), closeNav: () => setNavOpen(false),
+      askDemo: (q) => this.ask(q),
+      brandName: DS.settings.displayName, brandSub: DS.settings.descriptor.toUpperCase(), monogram: DS.settings.monogram,
+      meName: actingAs(DS).name, meInitials: actingAs(DS).initials, meRole: actingAs(DS).role,
 
       /* home widgets */
       widgetHint: st.widgetEdit ? "EDITING BOARD" : String(st.widgets.length) + " WIDGETS",
@@ -3674,7 +3766,7 @@ export default class PulseLogic extends DCLogic {
       sendAgent: () => { if (st.agentDraft.trim()) this.sendToAgent(st.agentDraft.trim()); },
 
       /* mini chat */
-      showFab: page !== "Home" && page !== "Agents",
+      showFab: false,
       fabTitle: st.miniOpen ? "Close Helios" : "Ask Helios",
       fabChatStyle: "position:absolute;inset:0;transition:transform .34s var(--ease),opacity .24s var(--ease);"
         + (st.miniOpen ? "transform:rotate(-90deg) scale(.7);opacity:0" : "transform:none;opacity:1"),
@@ -3956,7 +4048,7 @@ export default class PulseLogic extends DCLogic {
         ? "position:absolute;left:0;right:0;top:0;height:76px;z-index:3;pointer-events:none;background:var(--accent)"
         : "display:none",
       headerPillStyle: "display:flex;align-items:center;gap:4px;height:54px;padding:5px;box-sizing:border-box;max-width:100%;min-width:0;overflow:hidden;"
-        + ((contextNav.length <= 6 && (st.w - (st.railOpen ? 252 : 68) - 12) >= 780) ? "" : "width:fit-content;margin:0 auto;")
+        + ((contextNav.length <= 4 && (st.w - (st.railOpen ? 252 : 68) - 12) >= 780) ? "" : "width:fit-content;margin:0 auto;")
         + "background:var(--surface);border:1px solid var(--border);border-radius:999px;"
         + "backdrop-filter:blur(24px) saturate(1.4);-webkit-backdrop-filter:blur(24px) saturate(1.4);"
         + "box-shadow:0 1px 0 rgba(255,255,255,.05) inset,0 10px 30px rgba(0,0,0,.28)",
@@ -4017,7 +4109,7 @@ export default class PulseLogic extends DCLogic {
       tabsLoose: !((st.w - (st.railOpen ? 252 : 68)) < 1000 && contextNav.length >= 4),
       tabsTight: (st.w - (st.railOpen ? 252 : 68)) < 1000 && contextNav.length >= 4,
       tabActiveBg: ((st.w - (st.railOpen ? 252 : 68)) < 1000 && contextNav.length >= 4) ? "var(--surface-2)" : "none",
-      searchWrapFlex: (contextNav.length <= 6 && (st.w - (st.railOpen ? 252 : 68) - 12) >= 780) ? "1 1 auto" : "0 0 auto",
+      searchWrapFlex: (contextNav.length <= 4 && (st.w - (st.railOpen ? 252 : 68) - 12) >= 780) ? "1 1 auto" : "0 0 auto",
       barLabel: st.barOpen ? "Collapse the bar" : "Expand the bar",
       barChevronStyle: "transition:transform .3s var(--ease);transform:rotate(" + (st.barOpen ? "0deg" : "180deg") + ")",
       toggleBar: () => this.setState(prev => ({barOpen: !prev.barOpen})),
@@ -4040,7 +4132,7 @@ export default class PulseLogic extends DCLogic {
       searchStyle: "height:38px;justify-self:center;min-width:0;" + (mid ? "width:100%;padding:0 8px 0 15px;" : "width:44px;justify-content:center;padding:0;"),
       // The bar is one row: the fewer sub-nav segments a page has, the more of the
       // leftover width the search field takes.
-      searchExpanded: contextNav.length <= 6 && (st.w - (st.railOpen ? 252 : 68) - 12) >= 780,
+      searchExpanded: contextNav.length <= 4 && (st.w - (st.railOpen ? 252 : 68) - 12) >= 780,
       searchBarStyle: (() => {
         const segs = contextNav.length;
         // No min-width floor: when the sub-nav pill group is wide, the search
@@ -4049,7 +4141,7 @@ export default class PulseLogic extends DCLogic {
         const cap = segs <= 2 ? 520 : segs <= 4 ? 440 : 340;
         // A real floor so the label always fits — the sub-nav group is now
         // shrinkable, so this comes out of its slack, not out of an overflow.
-        const collapsed = !(segs <= 6 && (st.w - (st.railOpen ? 252 : 68) - 12) >= 780);
+        const collapsed = !(segs <= 4 && (st.w - (st.railOpen ? 252 : 68) - 12) >= 780);
         if (collapsed) return "flex:none;width:42px;height:42px;display:flex;align-items:center;justify-content:center;padding:0;margin:0 2px;"
           + "background:var(--track);border:1px solid transparent;border-radius:999px;cursor:pointer;color:var(--body);"
           + "transition:border-color .2s var(--ease),color .2s var(--ease)";
@@ -4083,8 +4175,9 @@ export default class PulseLogic extends DCLogic {
         const live = st.agents.filter(a => a.state === "working" || a.state === "thinking").length;
         return (live ? live + " AGENTS RUNNING" : "NO AGENTS RUNNING") + " · SYNCED 2 MIN AGO";
       })(),
-      homeSubline: "Ask about any record, job or number you can see.",
-      approvalsPill: openKeys.length + " APPROVALS · €48,120 HELD",
+      homeSubline: "Ask about any job, invoice, receipt or machine.",
+      approvalsPill: millCov.missing.length ? dShort(millCov.missing[0]).toUpperCase() + " MISSING AT MILLRACE" : chase.length ? fmtEuro(demoMoney(DS).openC) + " OWED · " + chase.length + " TO CHASE" : "ALL DAYS LOGGED · NOTHING OWED",
+      goApprovals: () => millCov.missing.length ? openCapture({jobId:"J-014", date:millCov.missing[0], mode:"sample"}) : routeGo({page:"Invoices", tab:"chase"}),
       showApprovalNote: openKeys.length > 0 && !st.approvalNoteHidden,
       dismissApprovalNote: () => this.setState({approvalNoteHidden:true}),
       /* Home canvas: a decorative layer the user can switch, scoped to the
@@ -4175,26 +4268,8 @@ export default class PulseLogic extends DCLogic {
           swatch: "width:15px;height:15px;flex:none;border-radius:6px;border:1px solid " + (on ? "var(--accent-line)" : "var(--border)") + ";background:" + o[2],
           pick: () => this.setState({homeBg:o[0]})};
       }),
-      greetingPrefix: (() => {
-        const h = new Date().getHours();
-        const pool = h < 5 ? ["Still up","Burning the midnight oil"]
-          : h < 12 ? ["Good morning","Rise and grind","Morning"]
-          : h < 17 ? ["Good afternoon","Afternoon"]
-          : h < 22 ? ["Good evening","Evening"]
-          : ["Still going","Night owl mode"];
-        // A goofy one about 1 in 5 times, otherwise the plain greeting — picked
-        // once per hour and cached, so it doesn't flip on every re-render.
-        const goofy = ["Top of the morning","Look who it is","Well if it isn't"];
-        const bucket = Math.floor(Date.now() / 3600000);
-        if (this._greetBucket !== bucket) {
-          this._greetBucket = bucket;
-          const useGoofy = bucket % 5 === 0;
-          const list = useGoofy ? pool.concat(goofy) : pool;
-          this._greetPick = list[Math.floor(Math.random() * list.length)];
-        }
-        return this._greetPick;
-      })(),
-      greetingName: "Mac",
+      greetingPrefix: greeting() + ",",
+      greetingName: actingAs(DS).first,
       flipUnits: this.buildFlipUnits(BODY, INK, LIME),
       enterSettings: (e) => this.hover("__settings", "Settings", "", e),
       leaveSettings: () => this.unhover("__settings"),
@@ -4208,7 +4283,7 @@ export default class PulseLogic extends DCLogic {
       isWork: page === "Work",
       isSettings: page === "Settings",
       admin: adminModel,
-      inboxCount: String(openKeys.length),
+      inboxCount: String((millCov.missing.length ? 1 : 0) + chase.filter(v => v.overdueDays > 0 && !v.held).length + (!svc.booked && svc.remaining <= 25 ? 1 : 0) + DS.callbacks.filter(c => c.status !== "done").length + (readyToSend ? 1 : 0)),
       inboxEmpty: openKeys.length === 0,
       filteredEmpty: inboxKeys.length === 0,
       queueEmpty: queueTasks.length === 0,
@@ -4228,13 +4303,16 @@ export default class PulseLogic extends DCLogic {
           hasTool: isHelios, tool:m.tool || "", toolEffect: m.effect ? "· " + m.effect : "",
           toolDot: m.effect === "write" ? AMBER : LIME,
           hasTable: done && !!m.cols,
-          cols:m.cols || [], tableCols: m.cols ? "1.6fr 1fr .85fr .9fr" : "1fr",
+          cols:m.cols || [], tableCols: m.tableCols || (m.cols ? "1.6fr 1fr .85fr .9fr" : "1fr"),
+          hasChain: done && !!(m.chain && m.chain.length), chain: m.chain || [],
           rows:(m.rows || []).map(r => ({cells:r.map((v,i) => ({v, color: i===0 ? INK : DIM, font: i===0 ? "inherit" : MONO}))})),
           hasConfirm: done && m.confirm === true,
           confirmSummary: m.confirmSummary || "",
           confirmHash: "sha256 a4f19c…",
           hasActions: done && m.confirm !== true && !!m.actions,
-          actions:(m.actions || []).map(a => ({label:a[0], bg:a[1] ? LIME : "none", color:a[1] ? "var(--on-accent)" : "var(--ink)", border:a[1] ? LIME : "var(--border)", run:() => this.ask(a[0])}))
+          actions:(m.actions || []).map(a => Array.isArray(a)
+            ? {label:a[0], bg:a[1] ? "var(--accent-fill,var(--accent))" : "none", color:a[1] ? "var(--on-accent)" : "var(--ink)", border:a[1] ? "transparent" : "var(--border)", run:() => this.ask(a[0])}
+            : {label:a.label, bg:a.primary ? "var(--accent-fill,var(--accent))" : "var(--surface-2)", color:a.primary ? "var(--on-accent)" : "var(--ink)", border:a.primary ? "transparent" : "var(--border)", run:a.run})
         };
       }),
       suggestions: [
@@ -4251,7 +4329,15 @@ export default class PulseLogic extends DCLogic {
       ],
       /* Cards, not rows: each one lands on its own spring, newest first, with
          the status colour carried into a soft glow behind its marker. */
-      notifications: notificationFeed.slice(0,5).map((n, i) => ({
+      notifications: (() => {
+        const out = [];
+        if (millCov.missing.length) out.push({dot:"var(--attn)", text:"Millrace is missing " + dShort(millCov.missing[0]) + ". Log it before invoicing.", meta:"Ops Watchdog", event:"jobs · J-014", go:() => openCapture({jobId:"J-014", date:millCov.missing[0], mode:"sample"})});
+        chase.filter(v => v.overdueDays > 0 && !v.held).forEach(v => out.push({dot:"var(--attn)", text:v.customer.name + " owes " + fmtEuro(v.balance) + ", " + v.overdueDays + " days overdue.", meta:"Invoice Assistant", event:"invoices · " + v.inv.id, go:() => routeGo({page:"Invoices", tab:"chase", id:v.inv.id})}));
+        if (!svc.booked && svc.remaining <= 25) out.push({dot:"var(--attn)", text:svc.m.id + " " + svc.m.short + " has " + svc.remaining + " h to service.", meta:"Ops Watchdog", event:"plant · " + svc.m.id, go:() => routeGo({page:"Plant", tab:"service", id:svc.m.id})});
+        DS.callbacks.filter(c => c.status !== "done").forEach(c => out.push({dot:"var(--accent)", text:"Missed call from " + c.name + " about yard drainage.", meta:c.received.slice(11), event:"work · callbacks", go:() => routeGo({page:"Work", tab:"callbacks", id:c.id})}));
+        if (readyToSend) out.push({dot:"var(--accent)", text:readyToSend + " receipt ready to forward to Justin.", meta:"Costs Assistant", event:"costs · handover", go:() => routeGo({page:"Costs", tab:"handover"})});
+        return out;
+      })().map((n, i) => ({ go: () => { this.setState({showNotifs:false}); n.go(); },
         dot:n.dot, text:n.text, when:n.meta, event:n.event,
         cardStyle: "position:relative;flex:none;display:flex;align-items:flex-start;gap:11px;padding:13px 15px;border-radius:var(--r-md,16px);cursor:pointer;"
           + "background:var(--surface);border:1px solid var(--border);"
@@ -4277,7 +4363,8 @@ export default class PulseLogic extends DCLogic {
         {name:"Installer", grants:"core:task:view, core:task:update, site-visits:visit:*", scope:"own", users:"9"},
         {name:"Counter staff", grants:"core:person:view, core:organisation:view", scope:"location", users:"6"}
       ],
-      team: [{i:"AN",bg:"var(--accent)"},{i:"SB",bg:"#9fd6f0"},{i:"TW",bg:"#e6c78a"}],
+      team: DS.people.filter(p => p.crew !== "external").map((p, i) => ({i:p.initials, bg: p.crew === "regular" ? (i === 0 ? "#7cc0a7" : "#a9bccd") : "#d9c7a3"})),
+      crewLabel: "2 regular + 2 relief",
       paletteOpen: st.paletteOpen, showNotifs: st.showNotifs, query: st.query, draft: st.draft,
       noResults: results.length === 0,
       palScopes, hasQuery: q.length > 0, askPreview: q ? '"' + q + '"' : "",
@@ -4341,9 +4428,10 @@ export default class PulseLogic extends DCLogic {
         + "max-width:" + (st.thread.length && !st.chatRailPinned ? "880px" : "760px") + ";"
         + "transition:max-width .38s var(--ease)",
       composerTools: [
-        {label:"Records", icon:ICONS.navRecords, go: () => this.setState({page:"Records"})},
-        {label:"Files", icon:ICONS.files, go: () => this.setState({page:"Records", recSection:"files"})},
-        {label:"Agents", icon:ICONS.navAgents, go: () => this.setState({page:"Agents"})}
+        {label:"Log a day", primary:true, icon:"M12 3.5a2.8 2.8 0 0 1 2.8 2.8v5.4a2.8 2.8 0 0 1-5.6 0V6.3A2.8 2.8 0 0 1 12 3.5Z M6.5 11.2a5.5 5.5 0 0 0 11 0 M12 16.8v3.7",
+          go: () => openCapture(millCov.missing.length ? {jobId:"J-014", date:millCov.missing[0], mode:"sample"} : {})},
+        {label:"Find a receipt", icon:ICONS.records, go: () => this.ask("Find a receipt")},
+        {label:"Who owes me?", icon:ICONS.insights, go: () => this.ask("Who owes me?")}
       ],
       composerPrompts: [
         {label:"Chase the three invoices past 60 days", tag:"CASH", icon:ICONS.insights,

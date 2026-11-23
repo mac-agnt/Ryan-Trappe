@@ -4,20 +4,17 @@ import AgentFace from "../components/AgentFace";
 import NavThumb from "../components/NavThumb";
 import DashboardKpiBand from "./pages/DashboardKpiBand";
 import Home from "./pages/Home";
-import Work from "./pages/Work";
 import Records from "./pages/Records";
 import RecordsFiles from "./pages/RecordsFiles";
 import RecordsOntology from "./pages/RecordsOntology";
-import Activity from "./pages/Activity";
-import Settings from "./pages/Settings";
-import Dashboard from "./pages/Dashboard";
-import Agents from "./pages/Agents";
 import HeliosMini from "./overlays/HeliosMini";
 import WorkViewer from "./overlays/WorkViewer";
 import AgentStudio from "./overlays/AgentStudio";
 import NewRecordDialog from "./overlays/NewRecordDialog";
-import CommandPalette from "./overlays/CommandPalette";
 import BackgroundGallery from "./overlays/BackgroundGallery";
+import DemoPages from "./demo/DemoPages";
+import DemoOverlays from "./demo/DemoOverlays";
+import RecordsDirectory from "./demo/RecordsDirectory";
 
 type Props = { v: any };
 
@@ -28,18 +25,19 @@ export default function AppShell({ v }: Props) {
       <div style={{"position":"absolute","width":"1px","height":"1px","overflow":"hidden","opacity":"0","pointerEvents":"none"}}>
         <AgentFace shape={"crown-pebble"} state={"idle"} tint={"#191c1f"} size={"1"} />
       </div>
-      <nav data-rail-nav="1" style={css(v.railOuter)}>
+      {v.navOpen && <div className="rt-scrim rt-only-mobile" style={{"zIndex":"85"}} onClick={v.closeNav} />}
+      <nav data-rail-nav="1" data-open={v.navOpen ? "1" : "0"} style={css(v.railOuter)}>
         <span style={css(v.railThumbStyle)} />
         <div style={css(cat(v.railRowStyle, "margin-bottom:22px"))}>
           <button className={cx("ix0", "ix1")} onClick={v.toggleRail} title={v.railLabel} style={{"width":"36px","height":"36px","flex":"none","border":"0","borderRadius":"var(--cta-r,11px)","background":"var(--accent-fill,var(--accent))","color":"var(--on-accent)","boxShadow":"var(--accent-glow,none)","cursor":"pointer","display":"flex","alignItems":"center","justifyContent":"center","fontSize":"13px","fontWeight":"600","padding":"0","transition":"transform .2s var(--ease)"}}>
-            {"K"}
+            {txt(v.monogram)}
           </button>
           <span style={css(v.brandStyle)}>
             <span style={{"display":"block","fontSize":"15px","fontWeight":"600","letterSpacing":"-.3px","color":"var(--ink)"}}>
-              {"Kilbride Group"}
+              {txt(v.brandName)}
             </span>
-            <span style={{"display":"block","marginTop":"2px","fontSize":"9px","fontWeight":"500","letterSpacing":".16em","color":"var(--accent)"}}>
-              {"PULSE · OPERATIONS"}
+            <span style={{"display":"block","marginTop":"2px","fontSize":"8.5px","fontWeight":"500","letterSpacing":".04em","color":"var(--accent)","whiteSpace":"nowrap","fontFamily":"var(--ui)"}}>
+              {txt(v.brandSub)}
             </span>
           </span>
           {v.railOpen && (
@@ -96,14 +94,14 @@ export default function AppShell({ v }: Props) {
               </div>
               <div style={{"display":"flex","alignItems":"center","gap":"11px","marginTop":"12px"}}>
                 <div style={{"width":"40px","height":"40px","flex":"none","borderRadius":"999px","background":"var(--accent-soft)","color":"var(--accent)","display":"flex","alignItems":"center","justifyContent":"center","fontSize":"13px","fontWeight":"600"}}>
-                  {"MK"}
+                  {txt(v.meInitials)}
                 </div>
                 <div style={{"minWidth":"0"}}>
                   <div style={{"fontSize":"17px","fontWeight":"600","letterSpacing":"-.3px","color":"var(--ink)","whiteSpace":"nowrap","overflow":"hidden","textOverflow":"ellipsis"}}>
-                    {"Martin Kilbride"}
+                    {txt(v.meName)}
                   </div>
                   <div style={{"fontSize":"12.5px","color":"var(--faint)","marginTop":"2px","whiteSpace":"nowrap","overflow":"hidden","textOverflow":"ellipsis"}}>
-                    {"Kilbride Group · Owner"}
+                    {txt(v.meRole)}
                   </div>
                 </div>
               </div>
@@ -143,14 +141,14 @@ export default function AppShell({ v }: Props) {
             </button>
             <div style={css(cat(v.railRowStyle, "margin-top:10px;padding:12px 10px;border-top:1px solid var(--border)"))}>
               <div style={{"width":"40px","height":"40px","flex":"none","borderRadius":"12px","background":"var(--surface-2)","border":"1px solid var(--border)","color":"var(--body)","display":"flex","alignItems":"center","justifyContent":"center","fontSize":"12px","fontWeight":"600","cursor":"pointer"}}>
-                {"MK"}
+                {txt(v.meInitials)}
               </div>
               <span style={css(v.brandStyle)}>
                 <span style={{"display":"block","fontSize":"14px","fontWeight":"500","color":"var(--ink)"}}>
-                  {"Martin Kilbride"}
+                  {txt(v.meName)}
                 </span>
                 <span style={{"display":"block","marginTop":"2px","fontSize":"12px","color":"var(--faint)"}}>
-                  {"Kilbride Group · Owner"}
+                  {txt(v.meRole)}
                 </span>
               </span>
             </div>
@@ -165,7 +163,7 @@ export default function AppShell({ v }: Props) {
           {txt(v.hoverLabel?.hint)}
         </span>
       </span>
-      <main style={css(cat("--page-dy:", v.pageDy, ";position:relative;z-index:1;flex:1;min-width:0;display:flex;flex-direction:column;margin:16px 16px 16px 0;background:var(--panel,#0f1316);border:1px solid var(--border);border-radius:28px;overflow:hidden;box-shadow:0 1px 0 rgba(255,255,255,.03) inset"))}>
+      <main data-main="1" style={css(cat("--page-dy:", v.pageDy, ";position:relative;z-index:1;flex:1;min-width:0;display:flex;flex-direction:column;margin:16px 16px 16px 0;background:var(--panel,#0f1316);border:1px solid var(--border);border-radius:28px;overflow:hidden;box-shadow:0 1px 0 rgba(255,255,255,.03) inset"))}>
         {"\n"}
         {txt(v.pageSweepEl)}
         {"\n"}
@@ -178,6 +176,9 @@ export default function AppShell({ v }: Props) {
         <div style={css(v.headerFieldStyle)} />
         <header style={{"position":"relative","zIndex":"4","flex":"none","width":"100%","padding":"18px 28px","boxSizing":"border-box","borderBottom":"1px solid var(--border)"}}>
           <div style={css(v.headerPillStyle)}>
+            <button type="button" className="ix2 rt-menu-btn" onClick={v.openNav} aria-label="Open menu" style={{"flex":"none","width":"42px","height":"42px","border":"0","borderRadius":"999px","background":"none","color":"var(--ink)","cursor":"pointer","alignItems":"center","justifyContent":"center"}}>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M4 6.5h16 M4 12h16 M4 17.5h16" /></svg>
+            </button>
             {v.isAgents && (
               <>
                 <div style={{"flex":"0 0 auto","display":"flex","alignItems":"center","gap":"9px","padding":"0 8px 0 5px"}}>
@@ -201,7 +202,7 @@ export default function AppShell({ v }: Props) {
             )}
             {v.showPillNav && (
               <>
-                <div style={css(v.navGroupStyle)}>
+                <div data-nav-group="1" style={css(v.navGroupStyle)}>
                   {v.tabsLoose && (
                     <>
                       <NavThumb style={v.navThumb} tabsKey={v.navThumbKey} />
@@ -272,7 +273,7 @@ export default function AppShell({ v }: Props) {
                 <div style={{"flex":"0 0 auto","display":"flex","alignItems":"center","gap":"2px","padding":"0 3px"}}>
                   {v.showTheme && (
                     <>
-                      <button className="ix2" onClick={v.toggleTheme} title={v.themeLabel} style={{"width":"42px","height":"42px","border":"0","borderRadius":"999px","background":"none","cursor":"pointer","color":"var(--dim)","display":"flex","alignItems":"center","justifyContent":"center","transition":"background .2s var(--ease),color .2s var(--ease)"}}>
+                      <button className="ix2 rt-hide-mobile" onClick={v.toggleTheme} title={v.themeLabel} style={{"width":"42px","height":"42px","border":"0","borderRadius":"999px","background":"none","cursor":"pointer","color":"var(--dim)","display":"flex","alignItems":"center","justifyContent":"center","transition":"background .2s var(--ease),color .2s var(--ease)"}}>
                         <span style={{"position":"relative","width":"17px","height":"17px","flex":"none","display":"block"}}>
                           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={css(v.sunStyle)}>
                             <circle cx="12" cy="12" r="4.1" fill="none" stroke="currentColor" strokeWidth="1.7" />
@@ -297,7 +298,7 @@ export default function AppShell({ v }: Props) {
                 {v.showTeam && (
                   <>
                     <div style={{"width":"1px","height":"18px","flex":"none","margin":"0 4px","background":"var(--border)"}} />
-                    <div className="ix8" style={{"flex":"0 0 auto","display":"flex","alignItems":"center","gap":"9px","height":"42px","padding":"0 10px 0 16px","borderRadius":"999px","cursor":"pointer","transition":"background .2s var(--ease)"}}>
+                    <div className="ix8 rt-hide-mobile" style={{"flex":"0 0 auto","display":"flex","alignItems":"center","gap":"9px","height":"42px","padding":"0 10px 0 16px","borderRadius":"999px","cursor":"pointer","transition":"background .2s var(--ease)"}}>
                       <div style={{"display":"flex","alignItems":"center"}}>
                         {arr(v.team).map((p: any, i2: number) => (
                           <Fragment key={i2}>
@@ -311,10 +312,10 @@ export default function AppShell({ v }: Props) {
                         <>
                           <div style={{"minWidth":"0"}}>
                             <div style={{"fontSize":"12px","fontWeight":"500","lineHeight":"1.2","whiteSpace":"nowrap"}}>
-                              {"Martin Kilbride"}
+                              {"Crew"}
                             </div>
                             <div style={{"fontSize":"10.5px","color":"var(--faint)","lineHeight":"1.2"}}>
-                              {"Owner"}
+                              {txt(v.crewLabel)}
                             </div>
                           </div>
                         </>
@@ -324,7 +325,7 @@ export default function AppShell({ v }: Props) {
                 )}
               </>
             )}
-            <button className="ix2" onClick={v.toggleBar} title={v.barLabel} style={{"flex":"none","width":"42px","height":"42px","border":"0","borderRadius":"999px","background":"none","color":"var(--faint)","cursor":"pointer","display":"flex","alignItems":"center","justifyContent":"center","transition":"background .2s var(--ease),color .2s var(--ease)"}}>
+            <button className="ix2 rt-hide-mobile" onClick={v.toggleBar} title={v.barLabel} style={{"flex":"none","width":"42px","height":"42px","border":"0","borderRadius":"999px","background":"none","color":"var(--faint)","cursor":"pointer","display":"flex","alignItems":"center","justifyContent":"center","transition":"background .2s var(--ease),color .2s var(--ease)"}}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={css(v.barChevronStyle)}>
                 <path d="m9 6 6 6-6 6" />
               </svg>
@@ -353,7 +354,7 @@ export default function AppShell({ v }: Props) {
                 <div style={{"position":"relative","display":"flex","flexDirection":"column","gap":"7px","maxHeight":"min(58vh,440px)","overflowY":"auto","scrollbarWidth":"none"}}>
                   {arr(v.notifications).map((n: any, i3: number) => (
                     <Fragment key={i3}>
-                      <div className="ix9" style={css(n?.cardStyle)}>
+                      <div className="ix9" role="button" tabIndex={0} onClick={n?.go} style={css(n?.cardStyle)}>
                         <span style={css(n?.washStyle)} />
                         <span style={css(n?.dotStyle)} />
                         <span style={{"position":"relative","flex":"1","minWidth":"0","display":"block"}}>
@@ -389,9 +390,10 @@ export default function AppShell({ v }: Props) {
         {v.isDashboard && <DashboardKpiBand v={v} />}
         <div data-scroll-main="1" style={{"flex":"1","minHeight":"0","overflowY":"auto","overflowX":"hidden","scrollbarWidth":"none"}}>
           {v.isChat && <Home v={v} />}
-          {v.isWork && <Work v={v} />}
+          {v.demoPage && <DemoPages v={v} />}
           {v.isRecords && <Records v={v} />}
-          {v.rec?.isContacts && (
+          {v.rec?.isContacts && <div style={{"padding":"0 22px 30px"}}><RecordsDirectory query={v.rec?.ask ?? ""} /></div>}
+          {false && v.rec?.isContacts && (
             <>
               <div style={{"display":"flex","flexDirection":"column","gap":"14px"}}>
                 <div style={{"background":"var(--records-card)","border":"1px solid var(--border)","borderRadius":"var(--card-r,18px)","backdropFilter":"blur(20px)","boxShadow":"0 24px 60px rgba(0,0,0,.34)","overflow":"hidden"}}>
@@ -471,7 +473,7 @@ export default function AppShell({ v }: Props) {
           )}
           {v.rec?.isFiles && <RecordsFiles v={v} />}
           {v.rec?.isOntology && <RecordsOntology v={v} />}
-          {v.isActivity && <Activity v={v} />}
+
           {v.act?.detailOpen && (
             <>
               <div onClick={v.act?.closeDetail} style={{"position":"fixed","inset":"0","zIndex":"68","background":"var(--scrim)","backdropFilter":"blur(6px)","display":"flex","justifyContent":"flex-end"}}>
@@ -575,9 +577,7 @@ export default function AppShell({ v }: Props) {
               </div>
             </>
           )}
-          {v.isSettings && <Settings v={v} />}
-          {v.isDashboard && <Dashboard v={v} />}
-          {v.isAgents && <Agents v={v} />}
+
         </div>
       </main>
       {v.showFab && (
@@ -818,7 +818,7 @@ export default function AppShell({ v }: Props) {
         </>
       )}
       {v.newRec?.open && <NewRecordDialog v={v} />}
-      {v.paletteOpen && <CommandPalette v={v} />}
+      <DemoOverlays ask={v.askDemo} />
       {v.bgGallery?.open && <BackgroundGallery v={v} />}
     </div>
     </>
